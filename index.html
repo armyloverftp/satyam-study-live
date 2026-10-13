@@ -1,120 +1,263 @@
 <!DOCTYPE html>
 <html lang="hi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Satyam Study Live</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      padding: 20px;
-      font-family: Arial, sans-serif;
-      background: #101827;
-      color: white;
-      text-align: center;
-    }
-    h1 { color: #60a5fa; }
-    .card {
-      max-width: 520px;
-      margin: 20px auto;
-      padding: 20px;
-      background: #1f2937;
-      border-radius: 16px;
-    }
-    input, button {
-      width: 100%;
-      padding: 13px;
-      margin: 8px 0;
-      border: 0;
-      border-radius: 8px;
-      font-size: 16px;
-    }
-    button {
-      background: #2563eb;
-      color: white;
-      font-weight: bold;
-    }
-    #videoBox {
-      min-height: 220px;
-      margin-top: 15px;
-      padding: 20px;
-      background: #000;
-      border-radius: 12px;
-      display: grid;
-      place-items: center;
-    }
-    #status { color: #fbbf24; overflow-wrap: anywhere; }
-    .note { color: #cbd5e1; font-size: 14px; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Satyam Study Live</title>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;padding:15px;
+  background:#101827;color:white;
+  font-family:Arial,sans-serif;text-align:center
+}
+h1{color:#60a5fa}
+.card{
+  max-width:600px;margin:18px auto;padding:18px;
+  background:#1f2937;border-radius:15px
+}
+input,button{
+  width:100%;padding:13px;margin:7px 0;
+  border:0;border-radius:8px;font-size:16px
+}
+button{background:#2563eb;color:white;font-weight:bold}
+button:disabled{opacity:.5}
+#videoBox{
+  min-height:220px;margin-top:15px;padding:10px;
+  background:#000;border-radius:10px;
+  display:flex;flex-wrap:wrap;
+  align-items:center;justify-content:center;gap:8px
+}
+#videoBox video{
+  width:100%;max-height:350px;object-fit:contain
+}
+#status{color:#fbbf24;overflow-wrap:anywhere}
+#chatMessages{
+  height:180px;overflow-y:auto;background:#111827;
+  padding:10px;border-radius:8px;text-align:left;
+  overflow-wrap:anywhere
+}
+.note{color:#cbd5e1;font-size:13px}
+</style>
 </head>
 <body>
-  <h1>📚 Satyam Study Live</h1>
+<h1>📚 Satyam Study Live</h1>
 
-  <div class="card">
-    <h2>🎓 कक्षा 10 · UP Board</h2>
-    <p>शिक्षक की लाइव वीडियो क्लास</p>
+<div class="card">
+<h2>🎓 कक्षा 10 · UP Board</h2>
+<p>शिक्षक की लाइव वीडियो क्लास</p>
 
-    <input id="studentName" placeholder="अपना नाम लिखें"
-           maxlength="50" autocomplete="name">
+<input id="studentName" placeholder="अपना नाम लिखें" maxlength="50">
+<input id="roomName" placeholder="क्लास कोड लिखें" maxlength="100">
+<input id="teacherKey" type="password"
+placeholder="केवल शिक्षक का गुप्त कोड">
 
-    <input id="roomName" placeholder="क्लास कोड लिखें"
-           maxlength="100">
+<button id="joinBtn">क्लास से जुड़ें</button>
+<button id="leaveBtn" disabled>क्लास छोड़ें</button>
 
-    <button id="joinBtn">क्लास से जुड़ें</button>
+<div id="videoBox">📹 लाइव वीडियो यहाँ दिखाई देगा</div>
+<p id="status">अपना नाम और क्लास कोड भरें।</p>
+<p class="note">विद्यार्थी वीडियो देख सकते हैं और कमेंट कर सकते हैं।</p>
+</div>
 
-    <div id="videoBox">
-      📹 लाइव वीडियो यहाँ दिखाई देगा
-    </div>
-
-    <p id="status">क्लास से जुड़ने के लिए अपना नाम और कोड भरें।</p>
-    <p class="note">
-      यह शुरुआती इंटरफ़ेस है। लाइव वीडियो और कमेंट सुविधा के लिए
-      LiveKit कनेक्शन तथा सुरक्षित शिक्षक अनुमति अभी जोड़नी बाकी है।
-    </p>
+<div class="card">
+<h2>💬 लाइव कमेंट</h2>
+<div id="chatMessages"></div>
+<input id="chatInput" placeholder="कमेंट लिखें" maxlength="500">
+<button id="sendBtn" disabled>कमेंट भेजें</button>
   </div>
+  <script type="module">
+import {
+  Room,
+  RoomEvent
+} from "https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.esm.mjs";
 
-  <script>
-    const joinBtn = document.getElementById("joinBtn");
-    const statusBox = document.getElementById("status");
+const SERVER_URL =
+  "https://satyam-study-live.onrender.com";
 
-    joinBtn.addEventListener("click", async () => {
-      const name = document.getElementById("studentName").value.trim();
-      const room = document.getElementById("roomName").value.trim();
+const LIVEKIT_URL =
+  "wss://satyamstudylive-l18bjdt4.livekit.cloud";
 
-      if (!name || !room) {
-        statusBox.textContent = "कृपया नाम और क्लास कोड भरें।";
-        return;
+const $ = id => document.getElementById(id);
+let liveRoom = null;
+
+function status(message) {
+  $("status").textContent = message;
+}
+
+function showMessage(name, message) {
+  const p = document.createElement("p");
+  const strong = document.createElement("strong");
+  strong.textContent = name + ": ";
+  const span = document.createElement("span");
+  span.textContent = message;
+  p.append(strong, span);
+  $("chatMessages").appendChild(p);
+  $("chatMessages").scrollTop =
+    $("chatMessages").scrollHeight;
+}
+
+function showVideo(track) {
+  $("videoBox").appendChild(track.attach());
+}
+
+function removeVideo(track) {
+  track.detach().forEach(element => element.remove());
+}
+
+$("joinBtn").addEventListener("click", async () => {
+  const name = $("studentName").value.trim();
+  const roomName = $("roomName").value.trim();
+  const teacherKey = $("teacherKey").value.trim();
+
+  if (!name || !roomName) {
+    status("नाम और क्लास कोड भरें।");
+    return;
+  }
+
+  $("joinBtn").disabled = true;
+  status("सर्वर से कनेक्ट हो रहे हैं...");
+
+  try {
+    const response = await fetch(
+      SERVER_URL + "/get-token",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name,
+          room: roomName,
+          role: teacherKey ? "teacher" : "student",
+          teacherKey
+        })
       }
+    );
 
-      joinBtn.disabled = true;
-      statusBox.textContent = "सर्वर से जुड़ रहे हैं...";
+    const data = await response.json();
 
-      try {
-        const response = await fetch(
-          "https://satyam-study-live.onrender.com/get-token",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, room })
+    if (!response.ok) {
+      throw new Error(data.error || "टोकन नहीं मिला।");
+    }
+
+    liveRoom = new Room();
+
+    liveRoom.on(
+      RoomEvent.TrackSubscribed,
+      track => showVideo(track)
+    );
+
+    liveRoom.on(
+      RoomEvent.TrackUnsubscribed,
+      track => removeVideo(track)
+    );
+
+    liveRoom.on(
+      RoomEvent.DataReceived,
+      (payload, participant) => {
+        try {
+          const message = JSON.parse(
+            new TextDecoder().decode(payload)
+          );
+
+          if (message.type === "chat") {
+            showMessage(
+              participant?.identity || "विद्यार्थी",
+              message.message
+            );
           }
-        );
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || "सर्वर से टोकन नहीं मिला।");
+        } catch (error) {
+          console.log("कमेंट पढ़ने में समस्या");
         }
-
-        statusBox.textContent =
-          "टोकन मिल गया। अब LiveKit वीडियो कनेक्शन जोड़ना बाकी है।";
-      } catch (error) {
-        statusBox.textContent =
-          "कनेक्शन नहीं हुआ: " + error.message;
-      } finally {
-        joinBtn.disabled = false;
       }
-    });
-  </script>
+    );
+
+    await liveRoom.connect(
+      LIVEKIT_URL,
+      data.token
+    );
+
+    if (teacherKey) {
+      await liveRoom.localParticipant
+        .setCameraEnabled(true);
+      await liveRoom.localParticipant
+        .setMicrophoneEnabled(true);
+    }
+
+    $("leaveBtn").disabled = false;
+    $("sendBtn").disabled = false;
+    status("आप क्लास से जुड़ गए हैं।");
+
+  } catch (error) {
+    status("कनेक्शन नहीं हुआ: " + error.message);
+
+    if (liveRoom) {
+      await liveRoom.disconnect().catch(() => {});
+      liveRoom = null;
+    }
+  } finally {
+    $("joinBtn").disabled = false;
+  }
+});
+// लाइव कमेंट भेजना
+$("sendBtn").addEventListener("click", async () => {
+  if (!liveRoom) {
+    status("पहले क्लास से जुड़ें।");
+    return;
+  }
+
+  const message = $("chatInput").value.trim();
+
+  if (!message) {
+    status("पहले कमेंट लिखें।");
+    return;
+  }
+
+  try {
+    const payload = new TextEncoder().encode(
+      JSON.stringify({
+        type: "chat",
+        message: message
+      })
+    );
+
+    await liveRoom.localParticipant.publishData(
+      payload,
+      { reliable: true, topic: "chat" }
+    );
+
+    showMessage("आप", message);
+    $("chatInput").value = "";
+    status("कमेंट भेज दिया गया।");
+
+  } catch (error) {
+    status("कमेंट नहीं भेजा गया।");
+  }
+});
+
+// Enter दबाकर कमेंट भेजना
+$("chatInput").addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    $("sendBtn").click();
+  }
+});
+
+// क्लास छोड़ना
+$("leaveBtn").addEventListener("click", async () => {
+  if (liveRoom) {
+    await liveRoom.disconnect();
+    liveRoom = null;
+  }
+
+  $("videoBox").replaceChildren();
+  $("leaveBtn").disabled = true;
+  $("sendBtn").disabled = true;
+  status("आपने क्लास छोड़ दी है।");
+});
+
+// कनेक्शन टूटने पर संदेश
+// इसके बाद HTML फ़ाइल बंद करें।
+</script>
 </body>
 </html>
