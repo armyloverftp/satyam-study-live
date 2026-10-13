@@ -1,33 +1,120 @@
-<!DO<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="hi">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Satyam Study Live</title>
   <style>
+    * { box-sizing: border-box; }
     body {
+      margin: 0;
+      padding: 20px;
       font-family: Arial, sans-serif;
       background: #101827;
       color: white;
       text-align: center;
-      padding: 24px;
     }
     h1 { color: #60a5fa; }
     .card {
-      background: #1f2937;
+      max-width: 520px;
+      margin: 20px auto;
       padding: 20px;
-      border-radius: 14px;
-      margin-top: 24px;
+      background: #1f2937;
+      border-radius: 16px;
     }
-    p { line-height: 1.6; }
+    input, button {
+      width: 100%;
+      padding: 13px;
+      margin: 8px 0;
+      border: 0;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      font-weight: bold;
+    }
+    #videoBox {
+      min-height: 220px;
+      margin-top: 15px;
+      padding: 20px;
+      background: #000;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+    }
+    #status { color: #fbbf24; overflow-wrap: anywhere; }
+    .note { color: #cbd5e1; font-size: 14px; }
   </style>
 </head>
 <body>
   <h1>📚 Satyam Study Live</h1>
+
   <div class="card">
-    <h2>लाइव वीडियो क्लास</h2>
-    <p>शिक्षक की लाइव क्लास जल्द यहाँ शुरू होगी।</p>
-    <p>कक्षा 10 · UP Board</p>
+    <h2>🎓 कक्षा 10 · UP Board</h2>
+    <p>शिक्षक की लाइव वीडियो क्लास</p>
+
+    <input id="studentName" placeholder="अपना नाम लिखें"
+           maxlength="50" autocomplete="name">
+
+    <input id="roomName" placeholder="क्लास कोड लिखें"
+           maxlength="100">
+
+    <button id="joinBtn">क्लास से जुड़ें</button>
+
+    <div id="videoBox">
+      📹 लाइव वीडियो यहाँ दिखाई देगा
+    </div>
+
+    <p id="status">क्लास से जुड़ने के लिए अपना नाम और कोड भरें।</p>
+    <p class="note">
+      यह शुरुआती इंटरफ़ेस है। लाइव वीडियो और कमेंट सुविधा के लिए
+      LiveKit कनेक्शन तथा सुरक्षित शिक्षक अनुमति अभी जोड़नी बाकी है।
+    </p>
   </div>
+
+  <script>
+    const joinBtn = document.getElementById("joinBtn");
+    const statusBox = document.getElementById("status");
+
+    joinBtn.addEventListener("click", async () => {
+      const name = document.getElementById("studentName").value.trim();
+      const room = document.getElementById("roomName").value.trim();
+
+      if (!name || !room) {
+        statusBox.textContent = "कृपया नाम और क्लास कोड भरें।";
+        return;
+      }
+
+      joinBtn.disabled = true;
+      statusBox.textContent = "सर्वर से जुड़ रहे हैं...";
+
+      try {
+        const response = await fetch(
+          "https://satyam-study-live.onrender.com/get-token",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, room })
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "सर्वर से टोकन नहीं मिला।");
+        }
+
+        statusBox.textContent =
+          "टोकन मिल गया। अब LiveKit वीडियो कनेक्शन जोड़ना बाकी है।";
+      } catch (error) {
+        statusBox.textContent =
+          "कनेक्शन नहीं हुआ: " + error.message;
+      } finally {
+        joinBtn.disabled = false;
+      }
+    });
+  </script>
 </body>
-</html>￼Enter
+</html>
