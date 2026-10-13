@@ -53,6 +53,9 @@ button:disabled{opacity:.5}
 placeholder="केवल शिक्षक का गुप्त कोड">
 
 <button id="joinBtn">क्लास से जुड़ें</button>
+  <button id="cameraBtn" disabled>
+  कैमरा चालू करें
+  </button>
 <button id="leaveBtn" disabled>क्लास छोड़ें</button>
 
 <div id="videoBox">📹 लाइव वीडियो यहाँ दिखाई देगा</div>
@@ -69,7 +72,8 @@ placeholder="केवल शिक्षक का गुप्त कोड">
   <script type="module">
 import {
   Room,
-  RoomEvent
+  RoomEvent,
+  Track
 } from "https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.esm.mjs";
 
 const SERVER_URL =
@@ -179,12 +183,24 @@ $("joinBtn").addEventListener("click", async () => {
     );
 
     if (teacherKey) {
-      await liveRoom.localParticipant
-        .setCameraEnabled(true);
-      await liveRoom.localParticipant
-        .setMicrophoneEnabled(true);
-    }
+  await liveRoom.localParticipant
+    .setCameraEnabled(true);
 
+  await liveRoom.localParticipant
+    .setMicrophoneEnabled(true);
+
+  const publication =
+    liveRoom.localParticipant
+      .getTrackPublication(Track.Source.Camera);
+
+  if (publication && publication.track) {
+    showVideo(publication.track);
+  }
+
+  $("cameraBtn").disabled = false;
+  $("cameraBtn").textContent = "कैमरा बंद करें";
+    }
+    
     $("leaveBtn").disabled = false;
     $("sendBtn").disabled = false;
     status("आप क्लास से जुड़ गए हैं।");
@@ -242,7 +258,41 @@ $("chatInput").addEventListener("keydown", event => {
     $("sendBtn").click();
   }
 });
+$("cameraBtn").addEventListener("click", async () => {
+  if (!liveRoom) return;
 
+  const publication =
+    liveRoom.localParticipant
+      .getTrackPublication(Track.Source.Camera);
+
+  const cameraOn =
+    publication && publication.track
+      ? publication.track.isMuted === false
+      : false;
+
+  try {
+    await liveRoom.localParticipant
+      .setCameraEnabled(!cameraOn);
+
+    const updated =
+      liveRoom.localParticipant
+        .getTrackPublication(Track.Source.Camera);
+
+    if (updated && updated.track) {
+      if (!cameraOn) {
+        showVideo(updated.track);
+      } else {
+        removeVideo(updated.track);
+      }
+    }
+
+    $("cameraBtn").textContent =
+      cameraOn ? "कैमरा चालू करें" : "कैमरा बंद करें";
+
+  } catch (error) {
+    status("कैमरा नहीं चला: " + error.message);
+  }
+});
 // क्लास छोड़ना
 $("leaveBtn").addEventListener("click", async () => {
   if (liveRoom) {
