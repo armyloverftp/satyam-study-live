@@ -55,7 +55,8 @@ placeholder="केवल शिक्षक का गुप्त कोड">
 <button id="joinBtn">क्लास से जुड़ें</button>
   <button id="cameraBtn" disabled>
   कैमरा चालू करें
-<button id="switchCameraBtn">
+
+$("switchCameraBtn").disabled = false;
   कैमरा बदलें 🔄
   $("switchCameraBtn").addEventListener("click", async () => {
   if (!liveRoom) {
