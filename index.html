@@ -57,6 +57,42 @@ placeholder="केवल शिक्षक का गुप्त कोड">
   कैमरा चालू करें
 <button id="switchCameraBtn">
   कैमरा बदलें 🔄
+  $("switchCameraBtn").addEventListener("click", async () => {
+  if (!liveRoom) {
+    alert("पहले क्लास से जुड़ें।");
+    return;
+  }
+
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const cameras = devices.filter(
+      device => device.kind === "videoinput"
+    );
+
+    const publication =
+      liveRoom.localParticipant.getTrackPublication("camera");
+
+    const currentId =
+      publication?.track?.mediaStreamTrack?.getSettings().deviceId;
+
+    const nextCamera = cameras.find(
+      camera => camera.deviceId !== currentId
+    );
+
+    if (!nextCamera) {
+      alert("दूसरा कैमरा नहीं मिला।");
+      return;
+    }
+
+    await liveRoom.switchActiveDevice(
+      "videoinput",
+      nextCamera.deviceId
+    );
+  } catch (error) {
+    alert("कैमरा बदलने में समस्या: " + error.message);
+  }
+});
+
 </button>
   </button>
 <button id="leaveBtn" disabled>क्लास छोड़ें</button>
